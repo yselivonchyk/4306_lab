@@ -55,3 +55,10 @@ docs/_build/
 
 # PyBuilder
 target/
+
+#mystuff
+src/forest_cover
+src/classification
+src/Data
+src/Lab
+src/plots
