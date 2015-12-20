@@ -1,13 +1,12 @@
-import numpy as np
 import time
-from sklearn.svm import SVC
-from sklearn import datasets
-from numpy import random
-from sklearn.kernel_approximation import RBFSampler
-from sklearn.linear_model import SGDClassifier
-from sklearn.linear_model import Ridge
-import RKS_Sampler
 
+import numpy as np
+from sklearn import datasets
+from sklearn.kernel_approximation import RBFSampler
+from sklearn.linear_model import Ridge
+from sklearn.linear_model import SGDClassifier
+
+import RKS_Sampler
 
 a = np.array([[1, 2], [3, 4]])
 b = np.array([[5, 6], [7, 8]])

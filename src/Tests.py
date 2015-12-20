@@ -1,9 +1,7 @@
-import numpy as np
 import time
-from sklearn.svm import SVC
-from numpy import random
-from sklearn.kernel_approximation import RBFSampler
+
 from sklearn.linear_model import SGDClassifier
+
 import RKS_Sampler
 
 

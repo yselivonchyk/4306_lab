@@ -1,7 +1,7 @@
-import numpy as np
-import RKS_Sampler
 import matplotlib.pyplot as plt
-import sklearn.kernel_approximation as sk
+import numpy as np
+
+import RKS_Sampler
 
 
 def gram(x, sigma):

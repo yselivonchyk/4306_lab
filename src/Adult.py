@@ -9,12 +9,7 @@ feature type: categorical and numerical
 
 import os
 import numpy as np
-import pandas as pd
-import pdb
-
 import matplotlib.pyplot as plt
-import seaborn as sns
-sns.axes_style("darkgrid")
 
 from sklearn.cross_validation import train_test_split
 from sklearn.cross_validation import cross_val_score
