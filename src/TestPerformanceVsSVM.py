@@ -1,6 +1,7 @@
 import datasets
 import numpy as np
 import time
+import sklearn.kernel_approximation as smp
 import sys
 from sklearn import datasets as ds
 from sklearn import svm
@@ -8,6 +9,9 @@ from sklearn import cross_validation
 from RKS_Sampler import RKSSampler
 from matplotlib import pyplot as plt
 import random as rnd
+import inspect
+print inspect.getmodule(np.dot)
+import numpy.linalg as la
 
 
 from sklearn.datasets import make_classification
@@ -93,19 +97,27 @@ def run_2(clf, ds, test):
     return elaps, score, time.clock() - start
 
 
-def run_approx_2(clf, ds, w_size, test_ds):
+def run_approx_2(clf, ds, w_size, test_ds, ref_score=0):
     start = time.clock()
     sampler = RKSSampler(None, w_size, sigma)
+    # sampler2 = smp.RBFSampler(gamma=sigma)
     ds_proj = sampler.transform_cos(ds[0]), ds[1]
     clf.fit(ds_proj[0], ds_proj[1])
     elspsed = time.clock() - start
+
+    # start = time.clock()
+    # sampler2.fit_transform(test_ds[0])
+    # # print sampler2.random_weights_
+    # t_ref = time.clock() - start
 
     start = time.clock()
     features = sampler.transform_cos(test_ds[0])
     time_transform = time.clock() - start
     score = clf.score(features, test_ds[1])
-    print 'test: %6d' % w_size, '\tscore: %.4f' % score, '\t time (transform, score):', time_transform, '\t', time.clock() - start
-    return elspsed, score, time.clock() - start
+    print 'test: %6d' % w_size, '\tscore: (%.4f, %.4f)' % (score, ref_score - score), \
+        '\t time (tr, trans, score):', elspsed, '\t', time_transform, '\t', time.clock() - start - time_transform
+
+    return elspsed, score, time.clock() - start, ref_score - score
 
 
 def print_res(res_svm, proj_runs, wsizes, ds_name, normalize=False):
@@ -142,6 +154,29 @@ def savefig(name, postfix=''):
     plt.savefig('./plots/' + name + '_' + postfix + '.png')
 
 
+def log_average(arr):
+    arr = np.array(arr)
+    np.log(arr, arr)
+    res = np.average(arr)
+    return np.exp(res)
+
+
+def aproximate_loglog(x, y, color, label):
+    print x
+    x = np.log(np.array(x))
+    y_log = np.log(np.array(y))
+    x_vander = np.vander(x, 2)
+    res = la.lstsq(x_vander, y_log)[0]
+    x = np.linspace(x[0], x[-1])
+    print x
+    x_vander = np.vander(x, 2)
+    y = np.dot(x_vander, res)
+    x = np.exp(x)
+    y = np.exp(y)
+    plt.loglog(x, y, '--', lw=1, color=color)
+
+
+
 subset_size = 100
 cross_fold = 4
 sigma = 1
@@ -156,68 +191,86 @@ sets = datasets.Datasets()
 # projection_sizes = get_w_sizes(intermediate=intermediate_sizes)
 
 
-# EXPERIMENT 3
-
+# EXPERIMENT 4
 full_dataset = make_classification(n_features=2, n_redundant=0, n_informative=2, n_clusters_per_class=2, n_samples=2**17, random_state=2438)
+full_dataset = full_dataset[0:100000]
 
-input_sizes = get_log_sequence(2, 10, 13, intermediate=1)
-w_size = get_w_sizes(10, 5000, intermediate=2)
 
-time_90 = []
-time_99 = []
-time_svm = []
+res_t = np.zeros(())
 
-print input_sizes
 
-for index_i, input_size in enumerate(input_sizes):
-    ds = full_dataset[0][0:input_size], full_dataset[1][0:input_size]
-    test = full_dataset[0][0:input_size*2], full_dataset[1][0:input_size*2]
-
-    res_svm = run_2(svm_clf, ds, test)    #t, sc
-    time_svm.append(res_svm[0])
-
-    proj_runs = []
-    approx_eval_time = None
-    found = False
-    for index_j, w in enumerate(w_size):
-        proj_runs.append(run_approx_2(lin_clf, ds, w, test))
-        approx_eval_time = proj_runs[-1][2]
-        if res_svm[1] - proj_runs[-1][1] < 0.001:
-            found = True
-    if not found:
-        proj_runs.append(run_approx_2(lin_clf, ds, w_size[-1]*3, test))
-
-    score_list = (np.array([x[1] for x in proj_runs]))
-    relative_error_list = (score_list - res_svm[1]) * -1
-    print 'reror', relative_error_list
-    relative_time_proj = np.array([x[0] for x in proj_runs])
-
-    index_90, index_99 = None, None
-    for i in range(len(score_list)):
-        if relative_error_list[i] <= 0.01 and index_90 is None:
-            index_90 = i
-        if relative_error_list[i] <= 0.001 and index_99 is None:
-            index_99 = i
-    time_90.append(relative_time_proj[index_90] if index_90 is not None else None)
-    time_99.append(relative_time_proj[index_99] if index_99 is not None else 0)
-    print 'TIME. SVM:', res_svm[0], '\tproj relative:', relative_time_proj[-1], '\tproj worse:', proj_runs[-1][0]
-    print "input_size", input_size, '\t\tscore:', res_svm[1], '\tindexes', index_90, index_99
-    print 'error svm:', res_svm[1], "runs", relative_error_list[index_90], relative_error_list[index_99]
-    print 'eval (svm, proj):', res_svm[2], approx_eval_time
-    print
-
-plt.figure()
-
-print 'time 90', time_90, time_99
-plt.loglog(np.array(input_sizes), time_svm, lw=2, basey=2, color='g', label="SVM")
-plt.loglog(np.array(input_sizes), time_90, lw=2, basey=2, color='b', label="RFF delta(e) <= 0.01")
-plt.loglog(np.array(input_sizes), time_99, lw=2, basey=2, color='r', label="RFF delta(e) <= 0.001")
-plt.xlabel('input size')
-plt.ylabel('relative training time')
-plt.title('Comparison of training time of SVM and linear SMV using RFF')
-plt.legend()
-plt.show()
-
+# EXPERIMENT 3
+#
+# full_dataset = make_classification(n_features=2, n_redundant=0, n_informative=2, n_clusters_per_class=2, n_samples=2**17, random_state=2438)
+#
+# input_sizes = get_log_sequence(2, 10, 17, intermediate=1)
+# w_size = get_w_sizes(10, 10001, intermediate=2)
+#
+# time_90, time_99 = [], []
+# tt_svm, tt_90, tt_99 = [], [], []
+# time_svm = []
+#
+# print input_sizes
+#
+# for index_i, input_size in enumerate(input_sizes):
+#     ds = full_dataset[0][0:input_size], full_dataset[1][0:input_size]
+#     test = full_dataset[0][0:input_size*2], full_dataset[1][0:input_size*2]
+#
+#     res_svm = run_2(svm_clf, ds, test)    #t, sc, eval
+#     print 'INPUT', input_size, 'SVM. t: %.6f \t s: %.4f \t tt: %.6f' % res_svm
+#     time_svm.append(res_svm[0])
+#     tt_svm.append(res_svm[2])
+#
+#     w_90, w_t_90, w_99, w_t_99 = [], [], [], []
+#     for k in range(5):
+#         for index_j, w in enumerate(w_size):
+#             res = run_approx_2(lin_clf, ds, w, test, ref_score=res_svm[1])  # tt, score, total_t, delta_score
+#             if res[3] <= 0.01 and len(w_90) == len(w_99):
+#                 w_90.append(res[0])
+#                 w_t_90.append(res[2])
+#             if res[3] <= 0.001:
+#                 w_99.append(res[0])
+#                 w_t_99.append(res[2])
+#                 break
+#             if index_j == len(w_size)-1:
+#                 print 'not happened!'
+#     print w_90, log_average(w_90)
+#     print w_99, log_average(w_99)
+#     time_90.append(log_average(w_90))
+#     time_99.append(log_average(w_99))
+#     tt_90.append(log_average(w_t_90))
+#     tt_99.append(log_average(w_t_99))
+#
+#     print
+#
+# plt.figure()
+#
+# x = np.array(input_sizes)
+# print 'time 90', time_90, time_99
+# plt.loglog(x, time_svm, lw=2, color='y', label="SVM")
+# plt.loglog(x, time_90, lw=2, color='b', label="RFF delta(e) <= 0.01")
+# plt.loglog(x, time_99, lw=2, color='r', label="RFF delta(e) <= 0.001")
+# aproximate_loglog(input_sizes, time_90, color='b', label='Approx for delta(e) <= 0.01')
+# aproximate_loglog(input_sizes, time_99, color='r', label='Approx for delta(e) <= 0.001')
+# plt.xlabel('input size')
+# plt.ylabel('training time')
+# plt.grid()
+# plt.title('Comparison of training time of SVM and linear SMV using RFF')
+# plt.legend(fancybox=True, framealpha=0.5)
+# # plt.show()
+#
+#
+# plt.figure()
+# plt.loglog(x, time_svm/x, lw=2, color='y', label="SVM")
+# plt.loglog(x, tt_90/x, lw=2, color='b', label="RFF delta(e) <= 0.01")
+# plt.loglog(x, tt_99/x, lw=2, color='r', label="RFF delta(e) <= 0.001")
+# aproximate_loglog(input_sizes, tt_90/x, color='b', label='Approx for delta(e) <= 0.01')
+# aproximate_loglog(input_sizes, tt_99/x, color='r', label='Approx for delta(e) <= 0.001')
+# plt.xlabel('input size')
+# plt.ylabel('evaluation time')
+# plt.title('Comparison of evaluation time of SVM and linear SMV using RFF')
+# plt.legend(fancybox=True, framealpha=0.5)
+# plt.show()
 
 # EXPERIMENT 1
 # f, (time_plt, erro_plt, gamm_plt) = plt.subplots(3, sharex='col')

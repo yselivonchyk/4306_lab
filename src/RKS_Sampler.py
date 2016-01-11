@@ -3,6 +3,8 @@ from numpy.random import *
 from numpy import dot
 from numpy import cos, sin
 import numpy as np
+from sklearn.utils import check_array
+from sklearn.utils.extmath import safe_sparse_dot
 
 author = "y.selivonchyk"
 
@@ -33,13 +35,15 @@ class RKSSampler:
     # cos(wx + b)
     def transform_cos(self, X):
         self.__generate_w(X)
-        projection = dot(X, self.w)
+        # projection = dot(X, self.w) + self.b
+        # return cos(projection) * np.sqrt(2) / np.sqrt(self.n_dim)
 
-        shift = projection + self.b
-
-        radial = cos(shift) * np.sqrt(2)
-        res = radial / np.sqrt(self.n_dim)
-        return res
+        X = check_array(X, accept_sparse='csr')
+        projection = safe_sparse_dot(X, self.w)
+        projection += self.b
+        np.cos(projection, projection)
+        projection *= np.sqrt(2.) / np.sqrt(self.n_dim)
+        return projection
 
     def __generate_w(self, X):
         if not self.w is None:
@@ -54,3 +58,5 @@ class RKSSampler:
     @staticmethod
     def mult(w, x):
         return sum(imap(operator.mul, w, x))
+
+
