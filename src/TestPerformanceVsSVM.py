@@ -38,20 +38,18 @@ leuk = ds.load_digits()
 def get_w_sizes(min_v=10, max_v=10000, intermediate=0):
     i = min_v
     s = []
-    print s
     while i < max_v:
         s.append(i)
-        print i, max_v
         for j in range(intermediate):
             if (i * np.power(10, (j+1)*1.0/(intermediate+1))) < max_v:
-                print i * np.power(10, (j+1)*1.0/(intermediate+1)), max_v
+                # print i * np.power(10, (j+1)*1.0/(intermediate+1)), max_v
                 val = int(i * np.power(10, (j+1)*1.0/(intermediate+1)))
                 if val < max_v:
                     s.append(val)
                 else:
                     print 'illigal wsize: ', val
         i *= 10
-    print s
+    print 'w sizes: ', s
     return s
 
 
@@ -180,23 +178,76 @@ def aproximate_loglog(x, y, color, label):
 subset_size = 100
 cross_fold = 4
 sigma = 1
-ds_names = datasets.Datasets().getAllDatasetNames()
+# ds_names = datasets.Datasets().getAllDatasetNames()
 # ds_names = ['colic']
 intermediate_sizes = 4
 
 lin_clf = svm.LinearSVC(C=1, loss='hinge')
 svm_clf = svm.SVC(kernel='rbf', C=1, gamma=sigma)
 
-sets = datasets.Datasets()
+# sets = datasets.Datasets()
 # projection_sizes = get_w_sizes(intermediate=intermediate_sizes)
 
 
 # EXPERIMENT 4
+size = 100000
 full_dataset = make_classification(n_features=2, n_redundant=0, n_informative=2, n_clusters_per_class=2, n_samples=2**17, random_state=2438)
-full_dataset = full_dataset[0:100000]
+# full_dataset = full_dataset[0][0:size], full_dataset[1][0:size]
+ds = full_dataset[0][0:size], full_dataset[1][0:size]
+k = 10
+w_sizes = get_w_sizes(50, 1700, intermediate=1)
 
+res_t = np.random.rand(len(w_sizes), k)
+res_e = np.random.rand(len(w_sizes), k)
 
-res_t = np.zeros(())
+# res_svm = run_2(svm_clf, ds, full_dataset)
+res_svm = [93.019637, 0.9167022705078125, 48.86217599999999]
+print res_svm
+plt.semilogx(res_svm[0], 1 - res_svm[1], 'rs', label='SVM')
+for i in range(k):
+    print ''
+    print 'RUN', i
+    for j, w in enumerate(w_sizes):
+        res = run_approx_2(lin_clf, ds, w, full_dataset)  # tt, score, total_t, delta_score
+        res_t[j, i] = res[0]
+        res_e[j, i] = 1 - res[1]
+
+print 't', res_t
+res_t = np.sort(res_t, axis=1)[:,1:-1]
+res_e = np.sort(res_e, axis=1)[:,1:-1]
+
+print 't2', res_t
+
+x = np.average(res_t, axis=1)
+y = np.average(res_e, axis=1)
+xerr = res_t[:, [0, -1]]
+yerr = res_e[:, [0, -1]]
+print 'xerr', xerr.T
+print 'yerr', yerr.T
+xerr = np.absolute(xerr - np.array([x, x]).T)
+yerr= np.absolute(yerr - np.array([y, y]).T)
+print 'x', x
+print 'y', y
+print 'xerr', xerr.T
+print 'yerr', yerr.T
+
+plt.xscale("log")
+plt.errorbar(x, y, xerr=xerr.T, yerr=yerr.T, fmt='o', label='RFF for various |w|')
+plt.xlim([x[0]*0.7,res_svm[0]*2])
+
+#
+# plt.semilogx(res_svm[0], 1-res_svm[1], 'rs')
+# for i in range(len(w_sizes)):
+#     t = np.sort(res_t[i])[1:-1]
+#     e = np.sort(res_e[i])[1:-1]
+#     plt.semilogx(t, e, 'bs')
+
+plt.xlabel('training time')
+plt.ylabel('training error')
+plt.grid()
+plt.title('Running time and error comparison')
+plt.legend(fancybox=True, framealpha=0.5)
+plt.show()
 
 
 # EXPERIMENT 3
