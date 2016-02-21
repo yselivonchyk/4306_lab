@@ -159,19 +159,20 @@ def log_average(arr):
     return np.exp(res)
 
 
-def aproximate_loglog(x, y, color, label):
-    print x
+def aproximate_loglog(x, y, color, label, plot):
+    if plot is None:
+        plot = plt
     x = np.log(np.array(x))
     y_log = np.log(np.array(y))
     x_vander = np.vander(x, 2)
     res = la.lstsq(x_vander, y_log)[0]
     x = np.linspace(x[0], x[-1])
-    print x
     x_vander = np.vander(x, 2)
     y = np.dot(x_vander, res)
     x = np.exp(x)
     y = np.exp(y)
-    plt.loglog(x, y, '--', lw=1, color=color)
+    print 'lsqr: ', res, color
+    plot.loglog(x, y, '--', lw=1, color=color)
 
 
 
@@ -189,68 +190,160 @@ svm_clf = svm.SVC(kernel='rbf', C=1, gamma=sigma)
 # projection_sizes = get_w_sizes(intermediate=intermediate_sizes)
 
 
-# EXPERIMENT 4
-size = 100000
-full_dataset = make_classification(n_features=2, n_redundant=0, n_informative=2, n_clusters_per_class=2, n_samples=2**17, random_state=2438)
-# full_dataset = full_dataset[0][0:size], full_dataset[1][0:size]
-ds = full_dataset[0][0:size], full_dataset[1][0:size]
-k = 10
-w_sizes = get_w_sizes(50, 1700, intermediate=1)
-
-res_t = np.random.rand(len(w_sizes), k)
-res_e = np.random.rand(len(w_sizes), k)
-
-# res_svm = run_2(svm_clf, ds, full_dataset)
-res_svm = [93.019637, 0.9167022705078125, 48.86217599999999]
-print res_svm
-plt.semilogx(res_svm[0], 1 - res_svm[1], 'rs', label='SVM')
-for i in range(k):
-    print ''
-    print 'RUN', i
-    for j, w in enumerate(w_sizes):
-        res = run_approx_2(lin_clf, ds, w, full_dataset)  # tt, score, total_t, delta_score
-        res_t[j, i] = res[0]
-        res_e[j, i] = 1 - res[1]
-
-print 't', res_t
-res_t = np.sort(res_t, axis=1)[:,1:-1]
-res_e = np.sort(res_e, axis=1)[:,1:-1]
-
-print 't2', res_t
-
-x = np.average(res_t, axis=1)
-y = np.average(res_e, axis=1)
-xerr = res_t[:, [0, -1]]
-yerr = res_e[:, [0, -1]]
-print 'xerr', xerr.T
-print 'yerr', yerr.T
-xerr = np.absolute(xerr - np.array([x, x]).T)
-yerr= np.absolute(yerr - np.array([y, y]).T)
-print 'x', x
-print 'y', y
-print 'xerr', xerr.T
-print 'yerr', yerr.T
-
-plt.xscale("log")
-plt.errorbar(x, y, xerr=xerr.T, yerr=yerr.T, fmt='o', label='RFF for various |w|')
-plt.xlim([x[0]*0.7,res_svm[0]*2])
-
+# EXPERIMENT 4 Error&Time comparison
+# size = 100000
+# full_dataset = make_classification(n_features=2, n_redundant=0, n_informative=2, n_clusters_per_class=2, n_samples=2**17, random_state=2438)
+# # full_dataset = full_dataset[0][0:size], full_dataset[1][0:size]
+# ds = full_dataset[0][0:size], full_dataset[1][0:size]
+# k = 50
+# w_sizes = get_w_sizes(50, 1700, intermediate=1)
 #
-# plt.semilogx(res_svm[0], 1-res_svm[1], 'rs')
-# for i in range(len(w_sizes)):
-#     t = np.sort(res_t[i])[1:-1]
-#     e = np.sort(res_e[i])[1:-1]
-#     plt.semilogx(t, e, 'bs')
-
-plt.xlabel('training time')
-plt.ylabel('training error')
-plt.grid()
-plt.title('Running time and error comparison')
-plt.legend(fancybox=True, framealpha=0.5)
-plt.show()
+# res_t = np.random.rand(len(w_sizes), k)
+# res_e = np.random.rand(len(w_sizes), k)
+#
+# res_svm = [93.019637, 0.9167022705078125, 48.86217599999999]
+# res_svm = run_2(svm_clf, ds, full_dataset)
+# print res_svm
+# plt.semilogx(res_svm[0], 1 - res_svm[1], 'rs', label='SVM')
+# for i in range(k):
+#     print ''
+#     print 'RUN', i
+#     for j, w in enumerate(w_sizes):
+#         res = run_approx_2(lin_clf, ds, w, full_dataset)  # tt, score, total_t, delta_score
+#         res_t[j, i] = res[0]
+#         res_e[j, i] = 1 - res[1]
+#
+# print 't', res_t
+# drop = 5
+# res_t = np.sort(res_t, axis=1)[:,drop:-drop]
+# res_e = np.sort(res_e, axis=1)[:,drop:-drop]
+#
+# print 't2', res_t
+#
+# x = np.average(res_t, axis=1)
+# y = np.average(res_e, axis=1)
+# xerr = res_t[:, [0, -1]]
+# yerr = res_e[:, [0, -1]]
+# print 'xerr', xerr.T
+# print 'yerr', yerr.T
+# xerr = np.absolute(xerr - np.array([x, x]).T)
+# yerr= np.absolute(yerr - np.array([y, y]).T)
+# print 'x', x
+# print 'y', y
+# print 'xerr', xerr.T
+# print 'yerr', yerr.T
+#
+# plt.xscale("log")
+# plt.errorbar(x, y, xerr=xerr.T, yerr=yerr.T, fmt='o', label='RFF for various |w|')
+# plt.xlim([x[0]*0.7,res_svm[0]*2])
+#
+# #
+# # plt.semilogx(res_svm[0], 1-res_svm[1], 'rs')
+# # for i in range(len(w_sizes)):
+# #     t = np.sort(res_t[i])[1:-1]
+# #     e = np.sort(res_e[i])[1:-1]
+# #     plt.semilogx(t, e, 'bs')
+#
+# plt.xlabel('training time')
+# plt.ylabel('training error')
+# plt.grid()
+# plt.title('Running time and error comparison')
+# plt.legend(fancybox=True, framealpha=0.5)
+# plt.show()
 
 
 # EXPERIMENT 3
+#
+full_dataset = make_classification(n_features=2, n_redundant=0, n_informative=2, n_clusters_per_class=2, n_samples=2**17, random_state=2438)
+
+input_sizes = get_log_sequence(2, 10, 17, intermediate=1)
+w_size = get_w_sizes(10, 10001, intermediate=2)
+
+input_sizes = []
+# for i in range(np.power(2,10), np.power(2,16), (np.power(2,16)-np.power(2,10))/10):
+#     input_sizes.append(i)
+
+print 'is', input_sizes
+
+time_90, time_99 = [], []
+tt_svm, tt_90, tt_99 = [], [], []
+time_svm = []
+
+print input_sizes
+
+for index_i, input_size in enumerate(input_sizes):
+    ds = full_dataset[0][0:input_size], full_dataset[1][0:input_size]
+    test = full_dataset[0][0:input_size*2], full_dataset[1][0:input_size*2]
+
+    res_svm = run_2(svm_clf, ds, test)    #t, sc, eval
+    print 'INPUT', input_size, 'SVM. t: %.6f \t s: %.4f \t tt: %.6f' % res_svm
+    time_svm.append(res_svm[0])
+    tt_svm.append(res_svm[2])
+
+    w_90, w_t_90, w_99, w_t_99 = [], [], [], []
+    for k in range(5):
+        for index_j, w in enumerate(w_size):
+            res = run_approx_2(lin_clf, ds, w, test, ref_score=res_svm[1])  # tt, score, total_t, delta_score
+            if res[3] <= 0.01 and len(w_90) == len(w_99):
+                w_90.append(res[0])
+                w_t_90.append(res[2])
+            if res[3] <= 0.001:
+                w_99.append(res[0])
+                w_t_99.append(res[2])
+                break
+            if index_j == len(w_size)-1:
+                print 'not happened!'
+    print w_90, log_average(w_90)
+    print w_99, log_average(w_99)
+    time_90.append(log_average(w_90))
+    time_99.append(log_average(w_99))
+    tt_90.append(log_average(w_t_90))
+    tt_99.append(log_average(w_t_99))
+
+    print
+
+plt.figure()
+
+x = np.array(input_sizes)
+print 'time 90', time_90, time_99
+plt.loglog(x, time_svm, lw=2, color='y', label="SVM")
+plt.loglog(x, time_90, lw=2, color='b', label="RFF delta(e) <= 0.01")
+plt.loglog(x, time_99, lw=2, color='r', label="RFF delta(e) <= 0.001")
+aproximate_loglog(input_sizes, time_90, color='b', label='Approx for delta(e) <= 0.01', plot=plt)
+aproximate_loglog(input_sizes, time_99, color='r', label='Approx for delta(e) <= 0.001', plot = plt)
+plt.xlabel('input size')
+plt.ylabel('training time')
+plt.grid()
+plt.title('Training time of SVM and linear SMV using RFF')
+plt.legend(fancybox=True, framealpha=0.5)
+# plt.show()
+
+plt.figure()
+plt.plot(x, time_svm, lw=2, color='y', label="SVM")
+plt.plot(x, time_90, lw=2, color='b', label="RFF delta(e) <= 0.01")
+plt.plot(x, time_99, lw=2, color='r', label="RFF delta(e) <= 0.001")
+plt.xlabel('input size')
+plt.ylabel('training time')
+plt.grid()
+plt.title('Training time of SVM and linear SMV using RFF')
+plt.legend(fancybox=True, framealpha=0.5)
+
+plt.figure()
+plt.loglog(x, time_svm/x, lw=2, color='y', label="SVM")
+plt.loglog(x, tt_90/x, lw=2, color='b', label="RFF delta(e) <= 0.01")
+plt.loglog(x, tt_99/x, lw=2, color='r', label="RFF delta(e) <= 0.001")
+aproximate_loglog(input_sizes, tt_90/x, color='b', label='Approx for delta(e) <= 0.01', plot=plt)
+aproximate_loglog(input_sizes, tt_99/x, color='r', label='Approx for delta(e) <= 0.001', plot = plt)
+aproximate_loglog(input_sizes, time_svm/x, color='y', label='Approx for delta(e) <= 0.001', plot = plt)
+plt.xlabel('input size')
+plt.ylabel('evaluation time')
+plt.title('Comparison of evaluation time of SVM and linear SMV using RFF')
+plt.legend(fancybox=True, framealpha=0.5)
+plt.grid()
+plt.show()
+
+
+# EXPERIMENT 5 (sub 3)
 #
 # full_dataset = make_classification(n_features=2, n_redundant=0, n_informative=2, n_clusters_per_class=2, n_samples=2**17, random_state=2438)
 #
@@ -298,29 +391,62 @@ plt.show()
 #
 # x = np.array(input_sizes)
 # print 'time 90', time_90, time_99
-# plt.loglog(x, time_svm, lw=2, color='y', label="SVM")
-# plt.loglog(x, time_90, lw=2, color='b', label="RFF delta(e) <= 0.01")
-# plt.loglog(x, time_99, lw=2, color='r', label="RFF delta(e) <= 0.001")
-# aproximate_loglog(input_sizes, time_90, color='b', label='Approx for delta(e) <= 0.01')
-# aproximate_loglog(input_sizes, time_99, color='r', label='Approx for delta(e) <= 0.001')
-# plt.xlabel('input size')
-# plt.ylabel('training time')
-# plt.grid()
-# plt.title('Comparison of training time of SVM and linear SMV using RFF')
-# plt.legend(fancybox=True, framealpha=0.5)
-# # plt.show()
 #
 #
-# plt.figure()
-# plt.loglog(x, time_svm/x, lw=2, color='y', label="SVM")
-# plt.loglog(x, tt_90/x, lw=2, color='b', label="RFF delta(e) <= 0.01")
-# plt.loglog(x, tt_99/x, lw=2, color='r', label="RFF delta(e) <= 0.001")
-# aproximate_loglog(input_sizes, tt_90/x, color='b', label='Approx for delta(e) <= 0.01')
-# aproximate_loglog(input_sizes, tt_99/x, color='r', label='Approx for delta(e) <= 0.001')
-# plt.xlabel('input size')
-# plt.ylabel('evaluation time')
-# plt.title('Comparison of evaluation time of SVM and linear SMV using RFF')
-# plt.legend(fancybox=True, framealpha=0.5)
+#
+# # linear
+# lglg = plt.subplot(221)
+# lglg.plot(x, time_svm, lw=2, color='y', label="SVM")
+# lglg.plot(x, time_90, lw=2, color='b', label="RFF delta(e) <= 0.01")
+# lglg.plot(x, time_99, lw=2, color='r', label="RFF delta(e) <= 0.001")
+# lglg.set_xlabel('input size')
+# lglg.set_ylabel('training time')
+# lglg.grid()
+# lglg.set_title('Comparison of training time of SVM and linear SMV using RFF')
+# lglg.legend(fancybox=True, framealpha=0.5)
+#
+#
+#
+# # log
+# lglg = plt.subplot(222)
+# lglg.semilogx(x, time_svm, lw=2, color='y', label="SVM")
+# lglg.semilogx(x, time_90, lw=2, color='b', label="RFF delta(e) <= 0.01")
+# lglg.semilogx(x, time_99, lw=2, color='r', label="RFF delta(e) <= 0.001")
+# lglg.set_xlabel('input size')
+# lglg.set_ylabel('training time')
+# lglg.grid()
+# lglg.set_title('Comparison of training time of SVM and linear SMV using RFF')
+# lglg.legend(fancybox=True, framealpha=0.5)
+#
+#
+#
+# # symmetric log
+# lglg = plt.subplot(223)
+# lglg.semilogy(x, time_svm, lw=2, color='y', label="SVM")
+# lglg.semilogy(x, time_90, lw=2, color='b', label="RFF delta(e) <= 0.01")
+# lglg.semilogy(x, time_99, lw=2, color='r', label="RFF delta(e) <= 0.001")
+# lglg.set_xlabel('input size')
+# lglg.set_ylabel('training time')
+# lglg.grid()
+# lglg.set_title('Comparison of training time of SVM and linear SMV using RFF')
+# lglg.legend(fancybox=True, framealpha=0.5)
+#
+#
+# # logit
+# lglg = plt.subplot(224)
+# lglg.loglog(x, time_svm, lw=2, color='y', label="SVM")
+# lglg.loglog(x, time_90, lw=2, color='b', label="RFF delta(e) <= 0.01")
+# lglg.loglog(x, time_99, lw=2, color='r', label="RFF delta(e) <= 0.001")
+# aproximate_loglog(input_sizes, time_90, color='b', label='Approx for delta(e) <= 0.01', plot=lglg)
+# aproximate_loglog(input_sizes, time_99, color='r', label='Approx for delta(e) <= 0.001', plot=lglg)
+# aproximate_loglog(input_sizes, time_svm, color='y', label='Approx for delta(e) <= 0.001', plot=lglg)
+# lglg.set_xlabel('input size')
+# lglg.set_ylabel('training time')
+# lglg.grid()
+# lglg.set_title('Comparison of training time of SVM and linear SMV using RFF')
+# lglg.legend(fancybox=True, framealpha=0.5)
+# plt.show()
+#
 # plt.show()
 
 # EXPERIMENT 1
