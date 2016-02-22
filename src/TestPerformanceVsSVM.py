@@ -1,6 +1,7 @@
 import datasets
 import numpy as np
 import time
+from mpl_toolkits.mplot3d import Axes3D
 import sklearn.kernel_approximation as smp
 import sys
 from sklearn import datasets as ds
@@ -10,6 +11,7 @@ from RKS_Sampler import RKSSampler
 from matplotlib import pyplot as plt
 import random as rnd
 import inspect
+import GausianClusters as gc
 print inspect.getmodule(np.dot)
 import numpy.linalg as la
 
@@ -113,7 +115,7 @@ def run_approx_2(clf, ds, w_size, test_ds, ref_score=0):
     time_transform = time.clock() - start
     score = clf.score(features, test_ds[1])
     print 'test: %6d' % w_size, '\tscore: (%.4f, %.4f)' % (score, ref_score - score), \
-        '\t time (tr, trans, score):', elspsed, '\t', time_transform, '\t', time.clock() - start - time_transform
+        '\t time (tr, trans, d_score):', elspsed, '\t', time_transform, '\t', time.clock() - start - time_transform
 
     return elspsed, score, time.clock() - start, ref_score - score
 
@@ -174,6 +176,9 @@ def aproximate_loglog(x, y, color, label, plot):
     print 'lsqr: ', res, color
     plot.loglog(x, y, '--', lw=1, color=color)
 
+
+def show_legend(figure):
+    figure.legend(fancybox=True, framealpha=0.5, loc='upper left')
 
 
 subset_size = 100
@@ -252,18 +257,42 @@ svm_clf = svm.SVC(kernel='rbf', C=1, gamma=sigma)
 # plt.show()
 
 
-# EXPERIMENT 3
-#
-full_dataset = make_classification(n_features=2, n_redundant=0, n_informative=2, n_clusters_per_class=2, n_samples=2**17, random_state=2438)
 
-input_sizes = get_log_sequence(2, 10, 17, intermediate=1)
+
+# EXPERIMENT 3
+# Compare training time and evaluation of linearSVM vs SVM
+# Plot the resulting function of time: time(n)
+#
+# APPROACH:
+# Full dataset of max(n) size is generated first.
+# Learners are trained on datasets of sizes(2^x, 2^(x+1), ..., 2^y) and error is measured on a dataset double that size
+# Approx.learner (linSVM with RFF) are trained for 2 values of error 0.01 and 0.001
+# Approx.learner training is performed 'repeats' number of times and resulting times are averaged for visualization.
+#   required because fixed number of dimensions for feature space are used and multiple runs (with same settings) might
+#   achieve target error on different projection sizes (features are random, what can i do).
+# DATASET:
+# 2 dimensional input space
+# 2 clusters that represent classification problem
+# inputs are drawn according to 2-dim normal distribution
+# clusters intersect heavily so some error is guarantied
+
+repeats = 5
+rnd_state_clusters = 2438    # so they intersect
+full_dataset = make_classification(n_features=2, n_redundant=0, n_informative=2, n_clusters_per_class=2,
+                                   n_samples=2**17, random_state=rnd_state_clusters)
+
+print 'shapes', full_dataset[0].shape, full_dataset[1].shape
+
+# input_sizes = get_log_sequence(2, 10, 17, intermediate=1)             # LONG
+input_sizes = get_log_sequence(2, 10, 13, intermediate=1)               # SHORT
+
 w_size = get_w_sizes(10, 10001, intermediate=2)
 
-input_sizes = []
+#input_sizes = []
 # for i in range(np.power(2,10), np.power(2,16), (np.power(2,16)-np.power(2,10))/10):
 #     input_sizes.append(i)
 
-print 'is', input_sizes
+print 'input sizes', input_sizes
 
 time_90, time_99 = [], []
 tt_svm, tt_90, tt_99 = [], [], []
@@ -281,7 +310,7 @@ for index_i, input_size in enumerate(input_sizes):
     tt_svm.append(res_svm[2])
 
     w_90, w_t_90, w_99, w_t_99 = [], [], [], []
-    for k in range(5):
+    for k in range(repeats):
         for index_j, w in enumerate(w_size):
             res = run_approx_2(lin_clf, ds, w, test, ref_score=res_svm[1])  # tt, score, total_t, delta_score
             if res[3] <= 0.01 and len(w_90) == len(w_99):
@@ -306,45 +335,207 @@ plt.figure()
 
 x = np.array(input_sizes)
 print 'time 90', time_90, time_99
-plt.loglog(x, time_svm, lw=2, color='y', label="SVM")
-plt.loglog(x, time_90, lw=2, color='b', label="RFF delta(e) <= 0.01")
-plt.loglog(x, time_99, lw=2, color='r', label="RFF delta(e) <= 0.001")
-aproximate_loglog(input_sizes, time_90, color='b', label='Approx for delta(e) <= 0.01', plot=plt)
-aproximate_loglog(input_sizes, time_99, color='r', label='Approx for delta(e) <= 0.001', plot = plt)
-plt.xlabel('input size')
-plt.ylabel('training time')
-plt.grid()
-plt.title('Training time of SVM and linear SMV using RFF')
-plt.legend(fancybox=True, framealpha=0.5)
+
+# LOGLOG plot. nice, but not as sharp as linear
+figure = plt.subplot(223)
+figure.loglog(x, time_svm, lw=2, color='y', label="SVM")
+figure.loglog(x, time_90, lw=2, color='b', label="RFF delta(e) <= 0.01")
+figure.loglog(x, time_99, lw=2, color='r', label="RFF delta(e) <= 0.001")
+aproximate_loglog(input_sizes, time_90, color='b', label='Approx for delta(e) <= 0.01', plot=figure)
+aproximate_loglog(input_sizes, time_99, color='r', label='Approx for delta(e) <= 0.001', plot=figure)
+figure.set_xlabel('input size')
+figure.set_ylabel('training time')
+figure.grid()
+figure.set_title('Training time of SVM and linear SMV using RFF')
+show_legend(figure)
+
+# training time comparison
+figure = plt.subplot(224)
+figure.plot(x, time_svm, lw=2, color='y', label="SVM")
+figure.plot(x, time_90, lw=2, color='b', label="RFF delta(e) <= 0.01")
+figure.plot(x, time_99, lw=2, color='r', label="RFF delta(e) <= 0.001")
+figure.set_xlabel('input size')
+figure.set_ylabel('training time')
+figure.grid()
+figure.set_title('Training time of SVM and linear SMV using RFF')
+show_legend(figure)
+
+# evaluation time comparison
+figure = plt.subplot(222)
+figure.loglog(x, time_svm / x, lw=2, color='y', label="SVM")
+figure.loglog(x, tt_90/x, lw=2, color='b', label="RFF delta(e) <= 0.01")
+figure.loglog(x, tt_99/x, lw=2, color='r', label="RFF delta(e) <= 0.001")
+aproximate_loglog(input_sizes, tt_90/x, color='b', label='Approx for delta(e) <= 0.01', plot=figure)
+aproximate_loglog(input_sizes, tt_99/x, color='r', label='Approx for delta(e) <= 0.001', plot = figure)
+aproximate_loglog(input_sizes, time_svm/x, color='y', label='Approx for delta(e) <= 0.001', plot = figure)
+figure.set_xlabel('input size')
+figure.set_ylabel('training time')
+figure.set_title('Comparison of evaluation time of SVM and linear SMV using RFF')
+show_legend(figure)
+figure.grid()
+
+# input space
+figure = plt.subplot(221)
+if True:
+    ds = full_dataset
+    x1, x2, y1, y2 = [], [], [], []
+    for i in range(1500):
+        if ds[1][i] == 1:
+            x1.append(ds[0][i][0])
+            y1.append(ds[0][i][1])
+        else:
+            x2.append(ds[0][i][0])
+            y2.append(ds[0][i][1])
+
+    figure.plot(x1, y1, 'bs')
+    figure.plot(x2, y2, 'r^')
+    figure.set_title("Classification problem. 1500 input points.")
+
 # plt.show()
 
-plt.figure()
-plt.plot(x, time_svm, lw=2, color='y', label="SVM")
-plt.plot(x, time_90, lw=2, color='b', label="RFF delta(e) <= 0.01")
-plt.plot(x, time_99, lw=2, color='r', label="RFF delta(e) <= 0.001")
-plt.xlabel('input size')
-plt.ylabel('training time')
-plt.grid()
-plt.title('Training time of SVM and linear SMV using RFF')
-plt.legend(fancybox=True, framealpha=0.5)
+
+
+
+# EXPERIMENT 6.
+# It is an experiment 3, again, but with more complex input dataset
+#
+# Compare training time and evaluation of linearSVM vs SVM
+# Plot the resulting function of time: time(n)
+#
+# APPROACH:
+# Full dataset of max(n) size is generated first.
+# Learners are trained on datasets of sizes(2^x, 2^(x+1), ..., 2^y) and error is measured on a dataset double that size
+# Approx.learner (linSVM with RFF) are trained for 2 values of error 0.01 and 0.001
+# Approx.learner training is performed 'repeats' number of times and resulting times are averaged for visualization.
+#   required because fixed number of dimensions for feature space are used and multiple runs (with same settings) might
+#   achieve target error on different projection sizes (features are random, what can i do).
+# DATASET:
+# N dimensional input space
+# 2 clusters that represent classification problem
+# inputs are drawn according to N-dim normal distribution, scaled randomly
+# clusters intersect heavily so some error is guarantied
+
+repeats = 5
+d, scale, ds_size = 3, 5, 2**17
+generator = gc.GausianClusters(d, scale)
+full_dataset = generator.generate_classification(ds_size)
+print 'shapes', full_dataset[0].shape, full_dataset[1].shape
+
+# input_sizes = get_log_sequence(2, 10, 17, intermediate=1)             # LONG
+input_sizes = get_log_sequence(2, 10, 13, intermediate=1)               # SHORT
+
+w_size = get_w_sizes(10, 10001, intermediate=2)
+
+#input_sizes = []
+# for i in range(np.power(2,10), np.power(2,16), (np.power(2,16)-np.power(2,10))/10):
+#     input_sizes.append(i)
+
+print 'input sizes', input_sizes
+
+time_90, time_99 = [], []
+tt_svm, tt_90, tt_99 = [], [], []
+time_svm = []
+
+print input_sizes
+
+for index_i, input_size in enumerate(input_sizes):
+    ds = full_dataset[0][0:input_size], full_dataset[1][0:input_size]
+    test = full_dataset[0][0:input_size*2], full_dataset[1][0:input_size*2]
+
+    res_svm = run_2(svm_clf, ds, test)    #t, sc, eval
+    print 'INPUT', input_size, 'SVM. t: %.6f \t s: %.4f \t tt: %.6f' % res_svm
+    time_svm.append(res_svm[0])
+    tt_svm.append(res_svm[2])
+
+    w_90, w_t_90, w_99, w_t_99 = [], [], [], []
+    for k in range(repeats):
+        for index_j, w in enumerate(w_size):
+            res = run_approx_2(lin_clf, ds, w, test, ref_score=res_svm[1])  # tt, score, total_t, delta_score
+            if res[3] <= 0.01 and len(w_90) == len(w_99):
+                w_90.append(res[0])
+                w_t_90.append(res[2])
+            if res[3] <= 0.001:
+                w_99.append(res[0])
+                w_t_99.append(res[2])
+                break
+            if index_j == len(w_size)-1:
+                print 'not happened!'
+    print w_90, log_average(w_90)
+    print w_99, log_average(w_99)
+    time_90.append(log_average(w_90))
+    time_99.append(log_average(w_99))
+    tt_90.append(log_average(w_t_90))
+    tt_99.append(log_average(w_t_99))
+
+    print
 
 plt.figure()
-plt.loglog(x, time_svm/x, lw=2, color='y', label="SVM")
-plt.loglog(x, tt_90/x, lw=2, color='b', label="RFF delta(e) <= 0.01")
-plt.loglog(x, tt_99/x, lw=2, color='r', label="RFF delta(e) <= 0.001")
-aproximate_loglog(input_sizes, tt_90/x, color='b', label='Approx for delta(e) <= 0.01', plot=plt)
-aproximate_loglog(input_sizes, tt_99/x, color='r', label='Approx for delta(e) <= 0.001', plot = plt)
-aproximate_loglog(input_sizes, time_svm/x, color='y', label='Approx for delta(e) <= 0.001', plot = plt)
-plt.xlabel('input size')
-plt.ylabel('evaluation time')
-plt.title('Comparison of evaluation time of SVM and linear SMV using RFF')
-plt.legend(fancybox=True, framealpha=0.5)
-plt.grid()
+
+x = np.array(input_sizes)
+print 'time 90', time_90, time_99
+# LOGLOG plot. nice, but not as sharp as linear
+figure = plt.subplot(223)
+figure.loglog(x, time_svm, lw=2, color='y', label="SVM")
+figure.loglog(x, time_90, lw=2, color='b', label="RFF delta(e) <= 0.01")
+figure.loglog(x, time_99, lw=2, color='r', label="RFF delta(e) <= 0.001")
+aproximate_loglog(input_sizes, time_90, color='b', label='Approx for delta(e) <= 0.01', plot=figure)
+aproximate_loglog(input_sizes, time_99, color='r', label='Approx for delta(e) <= 0.001', plot=figure)
+figure.set_xlabel('input size')
+figure.set_ylabel('training time')
+figure.grid()
+figure.set_title('Training time of SVM and linear SMV using RFF')
+show_legend(figure)
+
+# training time comparison
+figure = plt.subplot(224)
+figure.plot(x, time_svm, lw=2, color='y', label="SVM")
+figure.plot(x, time_90, lw=2, color='b', label="RFF delta(e) <= 0.01")
+figure.plot(x, time_99, lw=2, color='r', label="RFF delta(e) <= 0.001")
+figure.set_xlabel('input size')
+figure.set_ylabel('training time')
+figure.grid()
+figure.set_title('Training time of SVM and linear SMV using RFF')
+show_legend(figure)
+
+# evaluation time comparison
+figure = plt.subplot(222)
+figure.loglog(x, time_svm / x, lw=2, color='y', label="SVM")
+figure.loglog(x, tt_90/x, lw=2, color='b', label="RFF delta(e) <= 0.01")
+figure.loglog(x, tt_99/x, lw=2, color='r', label="RFF delta(e) <= 0.001")
+aproximate_loglog(input_sizes, tt_90/x, color='b', label='Approx for delta(e) <= 0.01', plot=figure)
+aproximate_loglog(input_sizes, tt_99/x, color='r', label='Approx for delta(e) <= 0.001', plot = figure)
+aproximate_loglog(input_sizes, time_svm/x, color='y', label='Approx for delta(e) <= 0.001', plot = figure)
+figure.set_xlabel('input size')
+figure.set_ylabel('training time')
+figure.set_title('Comparison of evaluation time of SVM and linear SMV using RFF')
+show_legend(figure)
+figure.grid()
+
+# show inputs
+x1, x2 = generator.generate_unit(500)
+ax = plt.subplot(221, projection='3d')
+marker = 'o'
+xp, yp, zp = gc.GausianClusters.pca(x1)
+ax.scatter(xp, yp, zp, c='r', marker=marker)
+xp, yp, zp = gc.GausianClusters.pca(x2)
+ax.scatter(xp, yp, zp, c='b', marker=marker)
+# print box to maintain the scales
+xp, yp, zp = generator.box_3d()
+ax.scatter(xp, yp, zp, '.', c='white', alpha=0.0)
+
 plt.show()
 
 
-# EXPERIMENT 5 (sub 3)
-#
+
+
+# EXPERIMENT 5
+# It is some version of experiment 3 that uses 4 different plots to compare runnning time of the learners
+# Plots are
+#   1) loglog
+#   2) logx
+#   3) logy
+#   4) linear
+
 # full_dataset = make_classification(n_features=2, n_redundant=0, n_informative=2, n_clusters_per_class=2, n_samples=2**17, random_state=2438)
 #
 # input_sizes = get_log_sequence(2, 10, 17, intermediate=1)
@@ -449,7 +640,13 @@ plt.show()
 #
 # plt.show()
 
+
+
+
 # EXPERIMENT 1
+# Uses illnesses datasets and checks the performance using different projection sizes
+#
+
 # f, (time_plt, erro_plt, gamm_plt) = plt.subplots(3, sharex='col')
 # f.set_size_inches(f.get_size_inches()*2)
 
@@ -494,7 +691,8 @@ plt.show()
 #     plt.plot(x2, y2, 'r^')
 #     plt.title("Classification problem. 1500 input points.")
 #     plt.show()
-#
+
+
 
 
 # EXPERIMENT 2 - 0.01, 0.001 error
