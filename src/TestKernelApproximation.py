@@ -1,14 +1,29 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import sklearn as sk
+import GausianClusters as gc
+from sklearn.kernel_approximation import RBFSampler
+import sklearn.metrics.pairwise as rbfk
 
 import RKS_Sampler
 
 
-def gram(x, sigma):
-    pt_sq_norms = (x**2).sum(axis=1)
+def gram(x, gamma):
+    sigma = 1. / np.sqrt(2*gamma)
+    return Gaussian(x[None,:,:],x[:,None,:],sigma,axis=2)
+
+def gram2(x, sigma):
+    pt_sq_norms = (x ** 2).sum(axis=1)
     dists_sq = -2 * np.dot(x, x.T) + pt_sq_norms.reshape(-1, 1) + pt_sq_norms
-    km = dists_sq * (-sigma / 2)
+    # turn into an RBF gram matrix
+    gamma = 1.0/(sigma**2 * 2)
+    km = np.sqrt(dists_sq) * (-1) * gamma
+    print gamma, sigma
     return np.exp(km, km)  # exponentiates in-place
+
+def Gaussian(x,z,sigma,axis=None):
+    return np.exp((-(np.linalg.norm(x-z, axis=axis)**2))/(2*sigma**2))
+
 
 
 def gram_projected(x):
@@ -63,10 +78,9 @@ def get_w_sizes(min_v=10, max_v=100000, intermediate=True):
 # Plotting
 
 
-def get_plot(title):
+def get_plot():
     plot = plt
     plot.autoscale(True)
-    plot.title(title)
     plot.xlabel(x_label)
     plot.ylabel(y_label)
     plot.legend(loc='best')
@@ -75,73 +89,80 @@ def get_plot(title):
 
 
 def savefig(name):
-    plt.savefig('./plots/' + name + '_.png')
+    plt.savefig('./plots/' + name + '_.png', dpi=600)
 
 
 # end Plotting
 
 
-def test_once(x, wsizes, state, sigma=1):
+def test_once(x, wsizes, state, gamma=1):
     runs = []
     # wsizes = map(lambda y: y/2, wsizes)
     for wsize in wsizes:
-        sampler = RKS_Sampler.RKSSampler(random_state=state, n_dim=wsize, sigma=sigma)
+        sampler = RKS_Sampler.RKSSampler(random_state=state, n_dim=wsize, gamma=gamma)
         features = sampler.transform_2n(x)
         # test for skikit implementation
-        # sampler = sk.RBFSampler(n_components=wsize, gamma=sigma)
-        # features = sampler.fit_transform(x)
+        sampler = sk.kernel_approximation.RBFSampler(n_components=wsize, gamma=gamma)
+        features = sampler.fit_transform(x)
         res = gram_projected(features)
         runs.append(res)
     return runs
 
 
 def test_randomstate():
-    sigma = 1
+    gamma = 1
     wsizes = get_w_sizes(max_v=1000)
-    plot = get_plot("Dependence on random state")
+    plot = get_plot("")
 
     x = np.random.randn(40, 20)
-    gm = gram(x, sigma)
+    gm = gram(x, gamma)
     for i in range(10):
-        runs = test_once(x, wsizes, i, sigma)
+        runs = test_once(x, wsizes, i, gamma)
         runs = [mean_difference(gm, i) for i in runs]
         plot.semilogx(np.array(wsizes), np.array(runs), 'o')
     plot.xlim(0.9*wsizes[0], 1.1*wsizes[-1])
+
+    savefig('tes')
+    plot.title("Dependence on random state")
     plot.legend(range(10))
 
 
 # Test: expected value of delta and confidence intervals
 
 
-def test_precision_interval():
-    sigma = 1
-    x = np.random.randn(100, 10) * 2
+def test_precision_interval(d=10, N=100, gamma=1):
+    gamma = gamma
+    x = np.random.rand(N, d)
     # print x, 'x'
     wsizes = get_w_sizes(min_v=100, intermediate=False)
-    gm = gram(x, sigma)
-    runs = test_once(x, wsizes, 1, sigma)
+    gm = gram(x, gamma)
+    runs = test_once(x, wsizes, 1, gamma)
     runs_difference = [prepare_for_inteval(x, gm) for x in runs]
     wsizes = [np.log(x)/np.log(10) for x in wsizes]
     labels = ['10^' + str(np.round((i+0.05)*10)/10.0) for i in wsizes]
-
+    print labels
+    plot_intervals(x_label, y_label, runs_difference, labels, True)     #
+    plt.grid()
+    savefig("test_precision_interval_error1")
     plt.title("Absolute estimation error (50% and 90% intervals)")
-    plot_intervals(x_label, y_label, runs_difference, labels, True)
-    savefig("fig_error_1")
+
     plt.figure()
     print labels
+    plot_intervals(x_label, y_label, runs_difference, labels, False)        #
+    plt.grid()
+    savefig("test_precision_interval_error2")
     plt.title("Absolute estimation error (50% and 90% intervals)")
-    plot_intervals(x_label, y_label, runs_difference, labels, False)
-    savefig("fig_error_2")
     plt.figure()
 
-    plt.title("Actual and estimated values for single input set")
     kernel_values = [prepare_for_intervals_no_difference(r) for r in runs]
     kernel_values.insert(0, prepare_for_intervals_no_difference(gm))
     labels.insert(0, "K(x,y)")
-
-    plot_intervals(x_label, "K(x, y) and z'(x)z(y) values", kernel_values, labels, True, [5, 95])
+    plot_intervals(x_label, "K(x, y) and z'(x)z(y) values", kernel_values, labels, True, [5, 95])   #
     plt.ylim(-0.3, 0.3)
-    savefig("fig_data")
+    plt.grid()
+    savefig("test_precision_interval_delta")
+    plt.title("Actual and estimated values for single input set")
+
     # plt.ylim(-0.2, 0.2)
 
 
@@ -163,6 +184,7 @@ def prepare_for_intervals_no_difference(x):
 def plot_intervals(lbl_x, lbl_y, data, labels, printmax, whis=[0, 90]):
     outlierMarker = 'x' if printmax else ''
     plt.boxplot(data, 0, outlierMarker, whis=whis, labels=labels)
+    # plt.boxplot(data, 0, outlierMarker, whis=whis)
     plt.xlabel(lbl_x)
     plt.ylabel(lbl_y)
 
@@ -171,18 +193,19 @@ def plot_intervals(lbl_x, lbl_y, data, labels, printmax, whis=[0, 90]):
 
 
 def test_input_size():
-    sigma = 1
+    gamma = 1
     wsizes = get_w_sizes(max_v=1000)
-    plot = get_plot("Dependence on input size")
+    plot = get_plot()
 
     for in_size in range(10, 50, 10):
         np.random.seed(1)
         x = np.random.randn(10, in_size)
-        gm = gram(x, sigma)
-        runs = test_once(x, wsizes, 1, sigma)
+        gm = gram(x, gamma)
+        runs = test_once(x, wsizes, 1, gamma)
         runs = [mean_difference(gm, i) for i in runs]
         plot.semilogx(np.array(wsizes), np.array(runs), '-', label=in_size)
     plot.xlim(0.9*wsizes[0], 1.1*wsizes[-1])
+    plt.title("Dependence on input size")
     plt.legend()
 
 
@@ -190,16 +213,16 @@ def test_input_size():
 
 
 def draw_denormolized_experiment(x, wsizes, label):
-    sigma = 1
-    gm = gram(x, sigma)
-    runs = test_once(x, wsizes, None, sigma)
+    gamma = 1
+    gm = gram(x, gamma)
+    runs = test_once(x, wsizes, None, gamma)
     runs = [mean_difference(gm, i) for i in runs]
     plt.semilogx(np.array(wsizes), np.array(runs), '-', label=label)
 
 
 def test_denormolized():
     wsizes = get_w_sizes(max_v=100000)
-    plot = get_plot("Dependence on input data")
+    plot = get_plot()
     plot.ylabel(y_label2)
 
     input_size = 100
@@ -230,24 +253,26 @@ def test_denormolized():
     # plot.ylim(0.0, 0.35)
     plt.legend()
     savefig("fig_input")
+    plt.title("Dependence on input data")
+
 
 
 # test max
-def prob_of_maxdelta(m, delta, D, d, sigma):
+def prob_of_maxdelta(m, delta, D, d, gamma):
     m1 = np.power(2, 8)
-    m2 = np.square(sigma * m / delta)
+    m2 = np.square(gamma * m / delta)
     m3 = np.exp(-1 * D * delta * delta / (4*(d+2)))
     return m1*m2*m3
 
 
 def test_max():
-    sigma = 1
+    gamma = 1
     wsizes = get_w_sizes(min_v=1000)
-    plot = get_plot("Dependence on random state")
+    plot = get_plot()
 
     x = np.random.randn(100, 100)
-    gm = gram(x, sigma)
-    runs = test_once(x, wsizes, 10, sigma)
+    gm = gram(x, gamma)
+    runs = test_once(x, wsizes, 10, gamma)
     means = [mean_difference(gm, i) for i in runs]
     plot.semilogx(np.array(wsizes), means, '-', label='mean')
     max = [np.amax(difference(gm, a)) for a in runs]
@@ -263,42 +288,57 @@ def test_max():
         probabilities.append(p)
     print probabilities
     plot.xlim(0.9*wsizes[0], 1.1*wsizes[-1])
-    plot.legend()
+    # plot.legend()
 
+
+def GaussianMatrix(X,gamma):
+    row,col=X.shape
+    GassMatrix=np.zeros(shape=(row,row))
+    X=np.asarray(X)
+    i=0
+    for v_i in X:
+        j=0
+        for v_j in X:
+            GassMatrix[i,j]=Gaussian(v_i.T,v_j.T,gamma)
+            j+=1
+        i+=1
+    return GassMatrix
+
+
+
+# x = np.random.rand(100, 100)
+# gamma = 0.001
+# g = []
+# for i in range(20):
+#     gamma *=2
+#     gx = gram(x, gamma =gamma)
+#     print gram(x, gamma =gamma)
+#     s = RKS_Sampler.RKSSampler(n_dim=100, gamma=gamma)
+#
+#     gm =  gram_projected(s.transform_cos(x))
+#     print gram_projected(s.transform_cos(x))
+#
+#     s = RBFSampler(gamma=gamma)
+#     gt = gram_projected(s.fit_transform(x))
+#     print gram_projected(s.fit_transform(x))
+#
+#     gm = np.absolute(gm - gx)
+#     gt = np.absolute(gt - gx)
+#     g.append(gm.mean()/gt.mean())
+#     print '%.4f \t %.4f' % (gamma, (gm.mean()/gt.mean()))
+# print g
+# print np.array(g).mean()
 
 # test_randomstate()
 # plt.figure()
-test_precision_interval()
-plt.figure()
+test_precision_interval(d=100, N=100, gamma=0.2)
 # test_input_size()
 # plt.figure()
 test_denormolized()
-# plt.figure()
+# # plt.figure()
 # test_max()
+
 # plt.show()
 
-
-
-# np.random.seed(1)
-# X = np.random.randn(100, 100)
-# X = np.array([[1, 2], [3, 4]])
-#
-# n = 1000
-# sampler = RKSSampler2.RKSSampler2(random_state=1, n_dim=n)
-# ref_sampler = ka.RBFSampler(gamma=1, n_components=n, random_state=1)
-#
-# gram_m = gram(X, 1.0)
-# proj_2n = sampler.transform_2n(X)
-# proj_cos = sampler.transform_cos(X)
-# proj_ = sampler.transform_rks(X)
-# ref_proj = ref_sampler.fit_transform(X)
-#
-# proj_2n = np.dot(proj_2n, proj_2n.T)
-# proj_cos = np.dot(proj_cos, proj_cos.T)
-# proj_ = np.dot(proj_, proj_.T)
-# ref_proj = np.dot(ref_proj, ref_proj.T)
-#
-# print_arrs(proj_2n, proj_cos, ref_proj, gram_m)
-# compare(gram_m, proj_2n, proj_cos, ref_proj)
 
 

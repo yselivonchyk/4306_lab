@@ -12,10 +12,10 @@ author = "y.selivonchyk"
 class RKSSampler:
     """Random Kitchen Sinks sampler implementation"""
 
-    def __init__(self, random_state, n_dim=100, sigma=1):
+    def __init__(self, random_state=None, n_dim=100, gamma=1.0):
         self.w = None
         self.b = None
-        self.sigma = sigma
+        self.gamma = gamma
         self.input_dim = 0
         self.n_dim = n_dim
         self.random_state = random_state
@@ -52,7 +52,7 @@ class RKSSampler:
         self.input_dim = len(X[0]) if len(X.shape) == 2 else len(X)
         if not(self.random_state is None):
             seed(self.random_state)
-        self.w = randn(self.input_dim, self.n_dim) * np.sqrt(2.) * self.sigma
+        self.w = randn(self.input_dim, self.n_dim) * np.sqrt(2 * self.gamma)
         self.b = random(self.n_dim) * 2 * np.pi     # b belongs to [0, 2pi)
 
     @staticmethod
