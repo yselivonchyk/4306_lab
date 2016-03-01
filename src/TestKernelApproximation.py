@@ -129,8 +129,70 @@ def test_randomstate():
 
 # Test: expected value of delta and confidence intervals
 
+def expected_epsilon(delta, D):
+    return np.sqrt(-2* np.log(delta/2)/D)
 
-def test_precision_interval(d=10, N=100, gamma=1):
+
+def expected_D(epsilon, delta):
+    return np.ceil((-2) * np.log(delta/2) / (epsilon**2))
+
+
+def print_predicted_vs_actual(wsizes, j, r, N, maxdelta=0.2, d=1):
+    smallestDelta = 10.0 /(N**2/2)
+    delta = maxdelta
+
+    D = wsizes[j]
+    eps_, expeps_, ratio_, delta_ = [],[],[], []
+    print len(r)
+    while delta >= smallestDelta:
+        index = int(len(r) * (1.0-delta))
+        epsilon = r[index]
+        exp_epsilon = expected_epsilon(delta, D)
+        exp_D = expected_D(epsilon, delta)
+        print D, delta, exp_epsilon, epsilon, exp_D, index
+        print 'D, delta, exp_eps, eps, exp_D, factor: %6d \t %.4f \t %.4f \t %.4f \t %6d \t\t %.4f \ti:%5d'\
+              % (D, delta, exp_epsilon, epsilon, exp_D, exp_D*1.0/D, index)
+
+        delta /= 2
+        if delta < smallestDelta and delta != smallestDelta/2:
+            delta = smallestDelta
+
+        eps_.append(epsilon)
+        expeps_.append(exp_epsilon)
+        ratio_.append(D*1.0/exp_D)
+        delta_.append(delta)
+    print eps_
+    print expeps_
+
+    plt.semilogx(np.array(delta_), np.array(eps_), '-', label="actual error(delta)")
+    plt.semilogx(np.array(delta_), np.array(expeps_), '-', label="expected error(delta)")
+    plt.semilogx(np.array(delta_), np.array(ratio_), '-', label="fraction of D/D_expected")
+    plt.legend(fancybox=True, framealpha=0.5, loc='upper left')
+    plt.gca().invert_xaxis()
+    plt.grid()
+    plt.xlabel('Delta [%.2f, %.8f]' %(maxdelta, smallestDelta))
+    savefig("inequalities%s_%d" % (str(N), d))
+    plt.title("Inequalities")
+
+
+def test_inequalities(d=50, N=2000, maxdelta=0.8, gamma=1, wsizes=np.array([100])):
+    gamma = gamma
+    x = np.random.rand(N, d)
+    # print x, 'x'
+    gm = gram(x, gamma)
+    runs = test_once(x, wsizes, 1, gamma)
+    runs_difference = [prepare_for_inteval(x, gm) for x in runs]
+
+    if len(wsizes) == 1:
+        print_predicted_vs_actual(wsizes, 0, runs_difference[0], N)
+    else:
+        for i, run in runs_difference:
+            print_predicted_vs_actual(wsizes, j, run, N, maxdelta, d)
+
+    # plt.ylim(-0.2, 0.2)
+
+
+def test_precision_interval(d=100, N=1000, gamma=1):
     gamma = gamma
     x = np.random.rand(N, d)
     # print x, 'x'
@@ -138,6 +200,7 @@ def test_precision_interval(d=10, N=100, gamma=1):
     gm = gram(x, gamma)
     runs = test_once(x, wsizes, 1, gamma)
     runs_difference = [prepare_for_inteval(x, gm) for x in runs]
+
     wsizes = [np.log(x)/np.log(10) for x in wsizes]
     labels = ['10^' + str(np.round((i+0.05)*10)/10.0) for i in wsizes]
     print labels
@@ -156,6 +219,7 @@ def test_precision_interval(d=10, N=100, gamma=1):
 
     kernel_values = [prepare_for_intervals_no_difference(r) for r in runs]
     kernel_values.insert(0, prepare_for_intervals_no_difference(gm))
+
     labels.insert(0, "K(x,y)")
     plot_intervals(x_label, "K(x, y) and z'(x)z(y) values", kernel_values, labels, True, [5, 95])   #
     plt.ylim(-0.3, 0.3)
@@ -305,6 +369,13 @@ def GaussianMatrix(X,gamma):
     return GassMatrix
 
 
+def run_all_relevant():
+    test_precision_interval(gamma=0.2)
+    plt.figure()
+    test_inequalities()
+    plt.figure()
+    test_denormolized()
+    plt.show()
 
 # x = np.random.rand(100, 100)
 # gamma = 0.001
@@ -331,14 +402,15 @@ def GaussianMatrix(X,gamma):
 
 # test_randomstate()
 # plt.figure()
-test_precision_interval(d=100, N=100, gamma=0.2)
+# test_precision_interval(d=100, N=1000, gamma=0.2)
+# test_inequalities(d=50, N=2000, gamma=1, wsizes=np.array([100]), maxdelta=0.8)
 # test_input_size()
 # plt.figure()
-test_denormolized()
+# test_denormolized()
 # # plt.figure()
 # test_max()
-
-# plt.show()
+test_inequalities(d=6)
+plt.show()
 
 
 
