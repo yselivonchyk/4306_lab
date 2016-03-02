@@ -1,4 +1,3 @@
-import datasets
 import numpy as np
 import time
 from mpl_toolkits.mplot3d import Axes3D
@@ -790,19 +789,10 @@ def TEST2_run_for_banch_of_input_size():
     plt.title('Comparison of training time of SVM and linear SMV using RFF')
     plt.legend()
 
-# TEST2_run_for_banch_of_input_size()
-
-# TEST6_svm_vs_linsvm_high_d(d=6, repeats=10)
-# TEST6_svm_vs_linsvm_high_d(d=6, repeats=1, logNmax=14)
-# TEST6_svm_vs_linsvm_high_d(logNmax=12, d=5, repeats=3)
-
-# plt.figure()
-
-
 
 def run_relevant_tests():
-    TEST1_compare_on_illnesses()
-    plt.figure()
+    # TEST1_compare_on_illnesses()
+    # plt.figure()
     TEST2_run_for_banch_of_input_size()
     plt.figure()
     TEST4_2_timeerror_intervals(N=20000, k=100, drop=5)
@@ -817,12 +807,14 @@ def run_forest_runasfastasyoucan():
     TEST6_svm_vs_linsvm_high_d(logNmax=12, d=5, repeats=3)
     plt.show()
 
+run_relevant_tests()
+
 # TEST2_run_for_banch_of_input_size()
 # plt.figure()
 # TEST1_compare_on_illnesses()
-TEST4_2_timeerror_intervals(N=20000, k=100, drop=5)
-plt.figure()
-TEST6_svm_vs_linsvm_high_d(repeats=15)
+# TEST4_2_timeerror_intervals(N=20000, k=100, drop=5)
+# plt.figure()
+# TEST6_svm_vs_linsvm_high_d(repeats=15)
 # TEST4_timeerror_intervals()       #full
 # TEST4_timeerror_intervals(N=100, k=5, drop=1) #fast
 # TEST4_2_timeerror_intervals(N=20000)
