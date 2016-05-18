@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import sklearn as sk
+import settings
 import GausianClusters as gc
 from sklearn.kernel_approximation import RBFSampler
 import sklearn.metrics.pairwise as rbfk
@@ -89,7 +90,10 @@ def get_plot():
 
 
 def savefig(name):
-    plt.savefig('./plots/' + name + '_.png', dpi=600)
+    plt.savefig(settings.plotLocation + name + '_.png', dpi=600)
+    if settings.currentPlotLocation is not None:
+        plt.savefig(settings.currentPlotLocation + name + '_.png', dpi=600)
+
 
 
 # end Plotting
@@ -205,17 +209,22 @@ def test_precision_interval(d=100, N=1000, gamma=1):
     runs_difference = [prepare_for_inteval(x, gm) for x in runs]
 
     wsizes = [np.log(x)/np.log(10) for x in wsizes]
-    labels = ['10^' + str(np.round((i+0.05)*10)/10.0) for i in wsizes]
+    labels = ['D=10^' + str(np.round((i+0.05)*10)/10.0) for i in wsizes]
     print labels
-    plot_intervals(x_label, y_label, runs_difference, labels, True)     #
-    plt.grid()
+    plot_intervals(x_label, y_label, runs_difference, labels, True)
+
+    ax = plt.axes()
+    ax.yaxis.grid()
     savefig("test_precision_interval_error1")
     plt.title("Absolute estimation error (50% and 90% intervals)")
 
     plt.figure()
     print labels
     plot_intervals(x_label, y_label, runs_difference, labels, False)        #
-    plt.grid()
+    plt.legend(fancybox=True, framealpha=0.5, loc='upper left')
+    ax = plt.axes()
+    ax.yaxis.grid()
+    plt.figtext(0.55, 0.85, 'Absolute error intervals', fontsize=14, backgroundcolor='#DDDDDD')
     savefig("test_precision_interval_error2")
     plt.title("Absolute estimation error (50% and 90% intervals)")
     plt.figure()
@@ -225,8 +234,10 @@ def test_precision_interval(d=100, N=1000, gamma=1):
 
     labels.insert(0, "K(x,y)")
     plot_intervals(x_label, "K(x, y) and z'(x)z(y) values", kernel_values, labels, True, [5, 95])   #
+    plt.figtext(0.55, 0.85, 'Intervals of kernel values', fontsize=14, backgroundcolor='#DDDDDD')
     plt.ylim(-0.3, 0.3)
-    plt.grid()
+    ax = plt.axes()
+    ax.yaxis.grid()
     savefig("test_precision_interval_delta")
     plt.title("Actual and estimated values for single input set")
 
@@ -248,7 +259,7 @@ def prepare_for_intervals_no_difference(x):
     return x
 
 
-def plot_intervals(lbl_x, lbl_y, data, labels, printmax, whis=[0, 90]):
+def plot_intervals(lbl_x, lbl_y, data, labels, printmax, whis=[0, 90], label=''):
     outlierMarker = 'x' if printmax else ''
     plt.boxplot(data, 0, outlierMarker, whis=whis, labels=labels)
     # plt.boxplot(data, 0, outlierMarker, whis=whis)
@@ -377,9 +388,9 @@ def run_all_relevant(faste=False):
     if faste:
         test_precision_interval(N=100, gamma=0.2)
         plt.figure()
-        test_inequalities(N=200)
-        plt.figure()
-        test_denormolized(max_w=1000)
+        # test_inequalities(N=200)
+        # plt.figure()
+        # test_denormolized(max_w=1000)
     else:
         test_precision_interval(gamma=0.2)
         plt.figure()
