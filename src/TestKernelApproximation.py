@@ -176,6 +176,7 @@ def print_predicted_vs_actual(wsizes, j, r, N, maxdelta=0.2, d=1):
 
 
 def test_inequalities(d=50, N=2000, maxdelta=0.8, gamma=1, wsizes=np.array([100])):
+    print "\n\r\n\r\n\r>>>TEST INEQUALITIES<<<"
     gamma = gamma
     x = np.random.rand(N, d)
     # print x, 'x'
@@ -188,11 +189,13 @@ def test_inequalities(d=50, N=2000, maxdelta=0.8, gamma=1, wsizes=np.array([100]
     else:
         for i, run in runs_difference:
             print_predicted_vs_actual(wsizes, j, run, N, maxdelta, d)
+    print "\n\r\n\r\n\r>>>TEST INEQUALITIES DONE<<<"
 
-    # plt.ylim(-0.2, 0.2)
+            # plt.ylim(-0.2, 0.2)
 
 
 def test_precision_interval(d=100, N=1000, gamma=1):
+    print "\n\r\n\r\n\r>>>TEST PRECISION INTERVALS<<<\n\r"
     gamma = gamma
     x = np.random.rand(N, d)
     # print x, 'x'
@@ -284,8 +287,9 @@ def draw_denormolized_experiment(x, wsizes, label):
     plt.semilogx(np.array(wsizes), np.array(runs), '-', label=label)
 
 
-def test_denormolized():
-    wsizes = get_w_sizes(max_v=100000)
+def test_denormolized(max_w=100000):
+    print "\n\r\n\r\n\r>>>TEST DENORMALIZATION<<<"
+    wsizes = get_w_sizes(max_v=max_w)
     plot = get_plot()
     plot.ylabel(y_label2)
 
@@ -369,13 +373,20 @@ def GaussianMatrix(X,gamma):
     return GassMatrix
 
 
-def run_all_relevant():
-    test_precision_interval(gamma=0.2)
-    plt.figure()
-    test_inequalities()
-    plt.figure()
-    test_denormolized()
-    plt.show()
+def run_all_relevant(faste=False):
+    if faste:
+        test_precision_interval(N=100, gamma=0.2)
+        plt.figure()
+        test_inequalities(N=200)
+        plt.figure()
+        test_denormolized(max_w=1000)
+    else:
+        test_precision_interval(gamma=0.2)
+        plt.figure()
+        test_inequalities()
+        plt.figure()
+        test_denormolized()
+    print '\n\r\n\r\n\rRELEVANT TEST FINISHED\n\r\n\r'
 
 # x = np.random.rand(100, 100)
 # gamma = 0.001
@@ -409,8 +420,10 @@ def run_all_relevant():
 # test_denormolized()
 # # plt.figure()
 # test_max()
-test_inequalities(d=6)
-plt.show()
+
+#
+# test_inequalities(d=6)
+# plt.show()
 
 
 

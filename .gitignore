@@ -61,4 +61,4 @@ src/forest_cover
 src/classification
 src/Data
 src/Uni
-src/plots
+*.png

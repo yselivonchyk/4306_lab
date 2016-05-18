@@ -293,7 +293,6 @@ def TEST4_2_timeerror_intervals(N=100000, k=100, drop=5, wmin=100, wmax=10001, i
     plt.legend(fancybox=True, framealpha=0.5)
     savefig('svm_timeerror_10-90', 'n%dN%dk%dk%d' % (d, N, k, drop))
     plt.title('Running time and error comparison')
-    plt.show()
 
 
 def score_outliers(cls, set1, set2):
@@ -382,8 +381,8 @@ def TEST6_svm_vs_linsvm_high_d(repeats=5, d=10, scale=5, ds_size=2**17, gamma=No
         tt_99.append(log_average(w_t_99))
         print
 
-    # test6_print_routine_together(d, ds_size, gamma, generator, input_sizes, repeats,
-    #                              time_90, time_99, time_svm, tt_90, tt_99)
+    test6_print_routine_together(d, ds_size, gamma, generator, input_sizes, repeats,
+                                 time_90, time_99, time_svm, tt_90, tt_99)
 
     test6_print_routine(d, ds_size, gamma, generator, input_sizes, repeats, time_90, time_99, time_svm, tt_90, tt_99)
 
@@ -431,7 +430,7 @@ def test6_print_routine_together(d, ds_size, gamma, generator, input_sizes, repe
     # aproximate_loglog(input_sizes, tt_99/x, color='r', label='Approx for delta(e) <= 0.001', plot = figure)
     # aproximate_loglog(input_sizes, time_svm/x, color='y', label='Approx for delta(e) <= 0.001', plot = figure)
     figure.set_xlabel('input size')
-    figure.set_ylabel('training time')
+    figure.set_ylabel('evaluation time')
     figure.grid()
 
     # inputs
@@ -712,10 +711,10 @@ def TEST1_compare_on_illnesses(subset_size=200, intermidiate_w_sizes=4):
 # Just generate some stuff and run for bunch of input sizes and projection sizes.
 # And compare it to SVM.
 # this is official.
-def TEST2_run_for_banch_of_input_size():
-    full_dataset = make_classification(n_features=2, n_redundant=0, n_informative=2, n_clusters_per_class=2, n_samples=2**17, random_state=2438)
+def TEST2_run_for_banch_of_input_size(logNbase2=16):
+    full_dataset = make_classification(n_features=2, n_redundant=0, n_informative=2, n_clusters_per_class=2, n_samples=2**(logNbase2+1), random_state=2438)
 
-    input_sizes = get_log_sequence(2, 4, 16, intermediate=1)
+    input_sizes = get_log_sequence(2, 4, logNbase2, intermediate=1)
     w_size = get_w_sizes(10, 5000, intermediate=2)
 
     time_90 = []
@@ -790,24 +789,24 @@ def TEST2_run_for_banch_of_input_size():
     plt.legend()
 
 
-def run_relevant_tests():
+def run_relevant_tests(fast=False):
     # TEST1_compare_on_illnesses()
     # plt.figure()
-    TEST2_run_for_banch_of_input_size()
-    plt.figure()
-    TEST4_2_timeerror_intervals(N=20000, k=100, drop=5)
-    plt.figure()
-    TEST6_svm_vs_linsvm_high_d(repeats=10)
-    plt.show()
+    if fast:
+        # TEST2_run_for_banch_of_input_size(logNbase2=10)
+        # plt.figure()
+        # TEST4_2_timeerror_intervals(N=100, k=5, drop=1)
+        # plt.figure()
+        TEST6_svm_vs_linsvm_high_d(logNmax=12, d=5, repeats=3)
+    else:
+        TEST2_run_for_banch_of_input_size()
+        plt.figure()
+        TEST4_2_timeerror_intervals(N=20000, k=100, drop=5)
+        plt.figure()
+        TEST6_svm_vs_linsvm_high_d(repeats=10)
 
 
-def run_forest_runasfastasyoucan():
-    TEST4_timeerror_intervals(N=100, k=5, drop=1)
-    plt.figure()
-    TEST6_svm_vs_linsvm_high_d(logNmax=12, d=5, repeats=3)
-    plt.show()
-
-run_relevant_tests()
+# run_relevant_tests()
 
 # TEST2_run_for_banch_of_input_size()
 # plt.figure()
