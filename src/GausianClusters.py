@@ -59,7 +59,10 @@ class GausianClusters:
         x1, x2 = rnd.randn(n, self.d), rnd.randn(n, self.d)
         return self.__transform(x1, x2)
 
-    def generate_classification(self, n):
+    def generate_classification(self, n, seed=-1):
+        if seed != -1:
+            np.random.seed(seed=seed)
+
         n /= 2
         x1, x2 = self.generate(n)
         return self.__to_classification(n, x1, x2)

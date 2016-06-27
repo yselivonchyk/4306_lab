@@ -9,7 +9,7 @@ doItFast = False
 
 settings.init(doItFast)
 
-ka.run_all_relevant(faste=doItFast)
+# ka.run_all_relevant(faste=doItFast)
 plt.figure()
 svma.run_relevant_tests(fast=doItFast)
 

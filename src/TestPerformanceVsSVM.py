@@ -11,12 +11,10 @@ from matplotlib import pyplot as plt
 import random as rnd
 import inspect
 import GausianClusters as gc
-print inspect.getmodule(np.dot)
 import numpy.linalg as la
 from matplotlib.mlab import PCA
 from sklearn.datasets import make_classification
 import settings
-
 
 
 def get_w_sizes(min_v=10, max_v=10000, intermediate=0, linear=True):
@@ -73,6 +71,17 @@ def run_approx(clf, ds, fold_size, w_size):
 
 
 def run_2(clf, ds, test):
+    start = time.clock()
+    clf.fit(ds[0], ds[1])
+    elaps = time.clock() - start
+
+    start = time.clock()
+    score = clf.score(test[0], test[1])
+
+    return elaps, score, time.clock() - start
+
+
+def run_3(clf, gen, inputsize):
     start = time.clock()
     clf.fit(ds[0], ds[1])
     elaps = time.clock() - start
@@ -335,8 +344,7 @@ def TEST6_svm_vs_linsvm_high_d(repeats=5, d=10, scale=5, ds_size=2**17, gamma=No
                                logNmin=10, logNmax=17, logNintermemdiate=1, logNbase=2):
     print 'started test 6'
     generator = gc.GausianClusters(d, scale)
-    full_dataset = generator.generate_classification(ds_size)
-    test_dataset = generator.generate_classification(ds_size)
+    full_dataset = generator.generate_classification(ds_size*2)
     outliers_3 = generator.generate_classification_outliers(outlier_size, outlier_gamma_1)
     outliers_4 = generator.generate_classification_outliers(outlier_size, outlier_gamma_2)
 
@@ -361,9 +369,9 @@ def TEST6_svm_vs_linsvm_high_d(repeats=5, d=10, scale=5, ds_size=2**17, gamma=No
 
     for index_i, input_size in enumerate(input_sizes):
         ds = full_dataset[0][0:input_size], full_dataset[1][0:input_size]
-        test = full_dataset[0][0:input_size*2], full_dataset[1][0:input_size*2]
+        test = full_dataset[0][input_size:input_size*2], full_dataset[1][input_size:input_size*2]
 
-        res_svm = run_2(svm_clf, ds, test_dataset)    #t, sc, eval
+        res_svm = run_3(svm_clf, generator, input_size)   #t, sc, eval
         print 'INPUT', input_size, 'SVM. t: %.6f \t s: %.4f \t tt: %.6f' % res_svm + ' \t |SV|:%d' % svm_clf.support_vectors_.shape[0]
         time_svm.append(res_svm[0])
         tt_svm.append(res_svm[2])
